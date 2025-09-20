@@ -1,0 +1,1 @@
+# smart_trading_assisstant
