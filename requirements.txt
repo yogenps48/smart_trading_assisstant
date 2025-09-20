@@ -1,0 +1,10 @@
+pandas>=1.5
+numpy>=1.24
+yfinance>=0.2.22
+pandas_ta   # or ta
+matplotlib>=3.7
+streamlit>=1.24
+pyyaml
+backtesting>=0.3.0   # optional, for quick backtesting
+requests
+python-dotenv
