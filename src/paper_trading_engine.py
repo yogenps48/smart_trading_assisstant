@@ -16,9 +16,10 @@ class PaperTradingEngine:
         self.in_position = False
         self.last_buy_price = None
         self.logger = TradeLogger()
+        self.running = False   # 👈 New flag
 
     def fetch_data(self, lookback_days=90, timeframe="1Day"):
-        """Fetch bars and return with Alpaca schema (Date, Open, High, Low, Close, Volume)"""
+        """Fetch bars and return with Alpaca schema (Date, Open, High, Low, Close, Volume)."""
         end = datetime.now()
         start = end - timedelta(days=lookback_days)
 
@@ -47,8 +48,9 @@ class PaperTradingEngine:
     def run(self, strategy_fn, strategy_kwargs=None):
         logging.info("Starting generic paper trading engine...")
         strategy_kwargs = strategy_kwargs or {}
+        self.running = True   # 👈 set flag
 
-        while True:
+        while self.running:   # 👈 loop until stopped
             try:
                 df = self.fetch_data()
                 df = strategy_fn(df, **strategy_kwargs)
@@ -78,3 +80,9 @@ class PaperTradingEngine:
                 logging.error(f"Error in trading loop: {e}")
 
             time.sleep(self.poll_interval)
+
+        logging.info("Trading engine stopped gracefully ✅")
+
+    def stop(self):
+        """Stop the trading loop gracefully."""
+        self.running = False
