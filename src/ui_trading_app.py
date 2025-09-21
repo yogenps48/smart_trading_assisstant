@@ -29,16 +29,21 @@ def strategy_wrapper(df, fast_sma=20, slow_sma=50, rsi_threshold=70):
 # ------------------------
 # Engine Controls
 # ------------------------
-def start_engine(symbol, qty, interval):
+def start_engine(symbol, qty, interval, fast_sma, slow_sma, rsi_threshold):
     global engine, engine_thread
     broker = AlpacaBroker()
     engine = PaperTradingEngine(broker, symbol, qty, poll_interval=interval)
 
     def run_engine():
-        engine.run(strategy_wrapper, strategy_kwargs={"fast_sma": 20, "slow_sma": 50, "rsi_threshold": 70})
+        engine.run(strategy_wrapper, strategy_kwargs={
+            "fast_sma": fast_sma,
+            "slow_sma": slow_sma,
+            "rsi_threshold": rsi_threshold
+        })
 
     engine_thread = threading.Thread(target=run_engine, daemon=True)
     engine_thread.start()
+
 
 def stop_engine():
     global engine
@@ -86,48 +91,57 @@ with tabs[0]:
 with tabs[1]:
     st.header("📈 Backtesting")
 
-    # Inputs
-    col1, col2 = st.columns(2)
+    # Inputs in 3 columns
+    col1, col2, col3 = st.columns(3)
     with col1:
-        symbol = st.text_input("Symbol", "AAPL")
-        timeframe = st.selectbox("Timeframe", ["1Day", "1Hour", "15Min"], index=0)
+        symbol = st.text_input("Symbol", "AAPL", key="bt_symbol")
+        fast_sma = st.number_input("Fast SMA Window", min_value=5, value=20, key="bt_fast_sma")
     with col2:
-        start_date = st.date_input("Start Date", datetime.now() - timedelta(days=365))
-        end_date = st.date_input("End Date", datetime.now())
+        timeframe = st.selectbox("Timeframe", ["1Day", "1Hour", "15Min"], index=0, key="bt_timeframe")
+        slow_sma = st.number_input("Slow SMA Window", min_value=10, value=50, key="bt_slow_sma")
+    with col3:
+        start_date = st.date_input("Start Date", datetime.now() - timedelta(days=365), key="bt_start_date")
+        end_date = st.date_input("End Date", datetime.now(), key="bt_end_date")
+        rsi_threshold = st.number_input("RSI Threshold", min_value=30, max_value=90, value=70, key="bt_rsi")
 
-    fast_sma = st.number_input("Fast SMA Window", min_value=5, value=20)
-    slow_sma = st.number_input("Slow SMA Window", min_value=10, value=50)
-    rsi_threshold = st.number_input("RSI Threshold", min_value=30, max_value=90, value=70)
-
-    if st.button("Run Backtest"):
-        df = fetch_history_alpaca(symbol, datetime.combine(start_date, datetime.min.time()), datetime.combine(end_date, datetime.min.time()), timeframe=timeframe)
+    # Run Backtest Button
+    if st.button("Run Backtest", key="bt_run"):
+        df = fetch_history_alpaca(
+            symbol,
+            datetime.combine(start_date, datetime.min.time()),
+            datetime.combine(end_date, datetime.min.time()),
+            timeframe=timeframe
+        )
         df = add_rsi(df, length=14)
         df = generate_signals(df, fast_sma=fast_sma, slow_sma=slow_sma, rsi_threshold=rsi_threshold)
 
-        bt_df, summary = simple_backtest(df, entry_col="entry", exit_col="exit", price_col="Close", initial_capital=10000)
+        bt_df, summary = simple_backtest(
+            df, entry_col="entry", exit_col="exit", price_col="Close", initial_capital=10000
+        )
 
+        # Show Metrics
         st.subheader("Summary Metrics")
-        metrics_df = pd.DataFrame([
-            {"Metric": "Initial Capital", "Value": summary['initial_capital']},
-            {"Metric": "Final Capital", "Value": summary['final_capital']},
-            {"Metric": "Total Return %", "Value": summary['total_return_pct']},
-            {"Metric": "CAGR %", "Value": summary['CAGR']*100},
-            {"Metric": "Sharpe Ratio", "Value": summary['Sharpe_Ratio']},
-            {"Metric": "Max Drawdown %", "Value": summary['Max_Drawdown']*100},
-            {"Metric": "Win Rate %", "Value": summary['Win_Rate']},
-            {"Metric": "Trades Taken", "Value": summary['num_trades']},
-        ])
+        metrics = {
+            "Initial Capital": f"${summary['initial_capital']}",
+            "Final Capital": f"${summary['final_capital']:.2f}",
+            "Total Return %": f"{summary['total_return_pct']:.2f}%",
+            "CAGR": f"{summary['CAGR']*100:.2f}%",
+            "Sharpe Ratio": f"{summary['Sharpe_Ratio']:.2f}",
+            "Max Drawdown": f"{summary['Max_Drawdown']*100:.2f}%",
+            "Win Rate": f"{summary['Win_Rate']:.2f}%",
+            "Trades Taken": summary['num_trades']
+        }
+        st.table(pd.DataFrame(metrics.items(), columns=["Metric", "Value"]))
 
-        st.dataframe(metrics_df)
-
-
+        # Chart
         st.subheader("Performance Chart")
         st.line_chart(bt_df[["equity"]])
+
+        # Trade List
         st.subheader("Trade List")
         trades = summary.get("trades", [])
         if trades:
             trades_df = pd.DataFrame(trades)
-            # Format date
             trades_df["date"] = pd.to_datetime(trades_df["date"]).dt.strftime("%Y-%m-%d")
             st.dataframe(trades_df)
         else:
@@ -144,22 +158,33 @@ with tabs[2]:
     # Inputs
     col1, col2, col3 = st.columns(3)
     with col1:
-        symbol = st.text_input("Live Trading Symbol", "AAPL")
+        symbol = st.text_input("Live Trading Symbol", "AAPL", key="exec_symbol")
     with col2:
-        qty = st.number_input("Quantity", min_value=1, value=1)
+        qty = st.number_input("Quantity", min_value=1, value=1, key="exec_qty")
     with col3:
-        interval = st.number_input("Polling Interval (sec)", min_value=10, value=60)
+        interval = st.number_input("Polling Interval (sec)", min_value=10, value=60, key="exec_interval")
 
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        fast_sma = st.number_input("Fast SMA Window", min_value=5, value=20, key="exec_fast_sma")
+    with col5:
+        slow_sma = st.number_input("Slow SMA Window", min_value=10, value=50, key="exec_slow_sma")
+    with col6:
+        rsi_threshold = st.number_input("RSI Threshold", min_value=30, max_value=90, value=70, key="exec_rsi")
+
+    # Start/Stop Trading
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("▶️ Start Trading"):
-            start_engine(symbol, qty, interval)
+        if st.button("▶️ Start Trading", key="exec_start"):
+            start_engine(symbol, qty, interval, fast_sma, slow_sma, rsi_threshold)
             st.success("Trading engine started")
     with col2:
-        if st.button("⏹ Stop Trading"):
+        if st.button("⏹ Stop Trading", key="exec_stop"):
             stop_engine()
             st.warning("Trading engine stopped")
 
+
+    # Open Positions
     st.subheader("Open Positions")
     positions = broker.get_positions()
     if positions:
@@ -167,6 +192,7 @@ with tabs[2]:
     else:
         st.info("No open positions")
 
+    # Trade History
     st.subheader("Trade History")
     if LOG_FILE.exists():
         trades_df = pd.read_csv(LOG_FILE)
