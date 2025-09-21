@@ -6,7 +6,7 @@ from src.indicators import add_rsi
 def strategy_wrapper(df, fast_sma=20, slow_sma=50, rsi_threshold=70):
     """
     Wrap Phase 1 strategy for live trading.
-    Adds RSI, then applies generate_signals().
+    Works with Alpaca schema (Date, Open, High, Low, Close, Volume).
     """
     df = add_rsi(df, length=14)
     df = generate_signals(df, fast_sma=fast_sma, slow_sma=slow_sma, rsi_threshold=rsi_threshold)

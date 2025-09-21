@@ -18,6 +18,7 @@ class PaperTradingEngine:
         self.logger = TradeLogger()
 
     def fetch_data(self, lookback_days=90, timeframe="1Day"):
+        """Fetch bars and return with Alpaca schema (Date, Open, High, Low, Close, Volume)"""
         end = datetime.now()
         start = end - timedelta(days=lookback_days)
 
@@ -30,12 +31,8 @@ class PaperTradingEngine:
             start=start_str,
             end=end_str,
             feed="iex"
-        ).df
-        
-        # Reset index so timestamp is a column
-        bars = bars.reset_index()
+        ).df.reset_index()
 
-        # Rename to standard OHLCV
         bars = bars.rename(columns={
             "timestamp": "Date",
             "open": "Open",
@@ -45,7 +42,6 @@ class PaperTradingEngine:
             "volume": "Volume"
         })
 
-        # Keep only what backtester needs
         return bars[["Date", "Open", "High", "Low", "Close", "Volume"]]
 
     def run(self, strategy_fn, strategy_kwargs=None):
@@ -59,7 +55,7 @@ class PaperTradingEngine:
                 latest = df.iloc[-1]
 
                 if latest.get("entry", False) and not self.in_position:
-                    price = latest["close"]
+                    price = latest["Close"]
                     logging.info(f"BUY {self.qty} {self.symbol} @ {price}")
                     order = self.broker.place_order(self.symbol, self.qty, side="buy")
                     logging.info(f"Order response: {order}")
@@ -68,13 +64,12 @@ class PaperTradingEngine:
                     self.logger.log_trade(self.symbol, "BUY", self.qty, price, order["id"])
 
                 elif latest.get("exit", False) and self.in_position:
-                    price = latest["close"]
+                    price = latest["Close"]
                     logging.info(f"SELL {self.qty} {self.symbol} @ {price}")
                     order = self.broker.place_order(self.symbol, self.qty, side="sell")
                     logging.info(f"Order response: {order}")
                     self.in_position = False
 
-                    # PnL calculation
                     pnl = (price - self.last_buy_price) * self.qty if self.last_buy_price else None
                     self.logger.log_trade(self.symbol, "SELL", self.qty, price, order["id"], pnl=pnl)
                     self.last_buy_price = None
