@@ -115,7 +115,7 @@ with tabs[1]:
             "Sharpe Ratio": f"{summary['Sharpe_Ratio']:.2f}",
             "Max Drawdown": f"{summary['Max_Drawdown']*100:.2f}%",
             "Win Rate": f"{summary['Win_Rate']:.2f}%",
-            "Trades Taken": summary['num_trades']
+            "Trades Taken": str(summary['num_trades'])
         }
         st.table(pd.DataFrame(metrics.items(), columns=["Metric", "Value"]))
 
