@@ -11,6 +11,7 @@ from src.data_fetcher_alpaca import fetch_history_alpaca
 from src.backtest import simple_backtest
 from src.indicators import add_rsi
 from src.strategy import generate_signals
+from src.utils import plot_trades
 
 # Global engine/thread references
 engine = None
@@ -121,7 +122,7 @@ with tabs[1]:
             df, entry_col="entry", exit_col="exit", price_col="Close", initial_capital=10000
         )
 
-        # Show Metrics
+               # Show Metrics
         st.subheader("Summary Metrics")
         metrics = {
             "Initial Capital": f"${summary['initial_capital']}",
@@ -131,9 +132,10 @@ with tabs[1]:
             "Sharpe Ratio": f"{summary['Sharpe_Ratio']:.2f}",
             "Max Drawdown": f"{summary['Max_Drawdown']*100:.2f}%",
             "Win Rate": f"{summary['Win_Rate']:.2f}%",
-            "Trades Taken": summary['num_trades']
+            "Trades Taken": str(summary['num_trades'])  # 👈 ensure string
         }
-        st.table(pd.DataFrame(metrics.items(), columns=["Metric", "Value"]))
+        metrics_df = pd.DataFrame(list(metrics.items()), columns=["Metric", "Value"])
+        st.table(metrics_df)
 
         # Chart
         st.subheader("Performance Chart")
@@ -146,6 +148,11 @@ with tabs[1]:
             trades_df = pd.DataFrame(trades)
             trades_df["date"] = pd.to_datetime(trades_df["date"]).dt.strftime("%Y-%m-%d")
             st.dataframe(trades_df)
+
+            # Candlestick chart with trades
+            st.subheader("Price Chart with Trades")
+            fig = plot_trades(df, trades, title=f"{symbol} Backtest with Trades")
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No trades executed in this backtest.")
 
@@ -201,3 +208,15 @@ with tabs[2]:
     if LOG_FILE.exists():
         trades_df = pd.read_csv(LOG_FILE)
         st.dataframe(trades_df.tail(20))
+    
+    # Live Candlestick Chart with Trades
+    st.subheader("Live Price Chart with Trades")
+    if LOG_FILE.exists():
+        trades_df = pd.read_csv(LOG_FILE)
+        trades = trades_df.to_dict("records")
+
+        # Fetch recent bars
+        df = engine.fetch_data(lookback_days=30) if engine else None
+        if df is not None and not df.empty:
+            fig = plot_trades(df, trades, title=f"{symbol} Live Trading with Trades")
+            st.plotly_chart(fig, use_container_width=True)
