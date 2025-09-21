@@ -29,10 +29,12 @@ def strategy_wrapper(df, fast_sma=20, slow_sma=50, rsi_threshold=70):
 # ------------------------
 # Engine Controls
 # ------------------------
-def start_engine(symbol, qty, interval, fast_sma, slow_sma, rsi_threshold):
+def start_engine(symbol, qty, interval, fast_sma, slow_sma, rsi_threshold, timeframe):
     global engine, engine_thread
     broker = AlpacaBroker()
-    engine = PaperTradingEngine(broker, symbol, qty, poll_interval=interval)
+    engine = PaperTradingEngine(broker, symbol, qty,
+                                poll_interval=interval,
+                                timeframe=timeframe)  # 👈 pass timeframe
 
     def run_engine():
         engine.run(strategy_wrapper, strategy_kwargs={
@@ -172,11 +174,13 @@ with tabs[2]:
     with col6:
         rsi_threshold = st.number_input("RSI Threshold", min_value=30, max_value=90, value=70, key="exec_rsi")
 
+    timeframe = st.selectbox("Timeframe", ["1Day", "1Hour", "15Min"], index=0, key="exec_timeframe")
+
     # Start/Stop Trading
     col1, col2 = st.columns(2)
     with col1:
         if st.button("▶️ Start Trading", key="exec_start"):
-            start_engine(symbol, qty, interval, fast_sma, slow_sma, rsi_threshold)
+            start_engine(symbol, qty, interval, fast_sma, slow_sma, rsi_threshold, timeframe)
             st.success("Trading engine started")
     with col2:
         if st.button("⏹ Stop Trading", key="exec_stop"):
