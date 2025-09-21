@@ -107,17 +107,19 @@ with tabs[1]:
         bt_df, summary = simple_backtest(df, entry_col="entry", exit_col="exit", price_col="Close", initial_capital=10000)
 
         st.subheader("Summary Metrics")
-        metrics = {
-            "Initial Capital": f"${summary['initial_capital']}",
-            "Final Capital": f"${summary['final_capital']:.2f}",
-            "Total Return %": f"{summary['total_return_pct']:.2f}%",
-            "CAGR": f"{summary['CAGR']*100:.2f}%",
-            "Sharpe Ratio": f"{summary['Sharpe_Ratio']:.2f}",
-            "Max Drawdown": f"{summary['Max_Drawdown']*100:.2f}%",
-            "Win Rate": f"{summary['Win_Rate']:.2f}%",
-            "Trades Taken": str(summary['num_trades'])
-        }
-        st.table(pd.DataFrame(metrics.items(), columns=["Metric", "Value"]))
+        metrics_df = pd.DataFrame([
+            {"Metric": "Initial Capital", "Value": summary['initial_capital']},
+            {"Metric": "Final Capital", "Value": summary['final_capital']},
+            {"Metric": "Total Return %", "Value": summary['total_return_pct']},
+            {"Metric": "CAGR %", "Value": summary['CAGR']*100},
+            {"Metric": "Sharpe Ratio", "Value": summary['Sharpe_Ratio']},
+            {"Metric": "Max Drawdown %", "Value": summary['Max_Drawdown']*100},
+            {"Metric": "Win Rate %", "Value": summary['Win_Rate']},
+            {"Metric": "Trades Taken", "Value": summary['num_trades']},
+        ])
+
+        st.dataframe(metrics_df)
+
 
         st.subheader("Performance Chart")
         st.line_chart(bt_df[["equity"]])
